@@ -45,12 +45,11 @@ namespace OnHookLogger
 
 			return (invoker, pars);
 		}
-
-		// TODO: Support EventSearchRecord record type for both CreateListener and GetListener
-		public void CreateListener(EventInfo e, Action callback)
+		
+		public void CreateListener(EventSearchRecord e, Action callback)
 		{
-			var dele = GetDelegate(e);
-			MethodBuilder h = DefineMethod($"{e.DeclaringType.Name}_{e.Name}_Handler", dele.mi.ReturnType, dele.pars);
+			var dele = GetDelegate(e.Event);
+			MethodBuilder h = DefineMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler", dele.mi.ReturnType, dele.pars);
 
 			ILGenerator il = h.GetILGenerator();
 			il.EmitCall(OpCodes.Call, callback.GetMethodInfo(), new Type[]{});
@@ -68,11 +67,11 @@ namespace OnHookLogger
 		/// <param name="declaringType"></param>
 		/// <param name="name"></param>
 		/// <returns></returns>
-		public MethodInfo? GetListener(string declaringType, string name)
+		public MethodInfo? GetListener(EventSearchRecord e)
 		{
 			if (finalProduct == null)
 				throw new Exception("MethodUtil's FinalizeType was not called");
-			return finalProduct.GetMethod($"{declaringType}_{name}_Handler");
+			return finalProduct.GetMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler");
 		}
 	}
 }

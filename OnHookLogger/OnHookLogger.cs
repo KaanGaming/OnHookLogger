@@ -59,7 +59,7 @@ namespace OnHookLogger
 
 			foreach (EventSearchRecord e in eList)
 			{
-				MethodInfo? handler = _methodUtil.GetListener(e, e.Event.Name);
+				MethodInfo? handler = _methodUtil.GetListener(e);
 				if (handler == null)
 					continue;
 
