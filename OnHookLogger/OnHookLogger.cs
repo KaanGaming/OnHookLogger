@@ -39,9 +39,15 @@ namespace OnHookLogger
 
 			// put additional initialization logic here
 			_methodUtil = new MethodUtil("OnHookLoggerDynamic");
+			On.HeroController.AddGeo += HeroController_AddGeo; // TODO: PLACEHOLDER, delete branch after the job is complete
 			AttachLoggersToEvents();
 
 			Log("Initialized");
+		}
+
+		private void HeroController_AddGeo(On.HeroController.orig_AddGeo orig, HeroController self, int amount)
+		{
+			orig(self, amount);
 		}
 
 		private void AttachLoggersToEvents()
