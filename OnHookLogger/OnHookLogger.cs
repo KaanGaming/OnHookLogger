@@ -58,8 +58,12 @@ namespace OnHookLogger
 
 			_methodUtil.FinalizeType();
 
-			foreach (EventSearchResult e in eList)
+			for (var i = 0; i < eList.Count; i++)
 			{
+				if (i % 100 == 0)
+					Log($"Attach progress: {i}/{eList.Count}");
+
+				EventSearchResult e = eList[i];
 				MethodInfo? handler = _methodUtil.GetListenerSafe(e, delegate(bool success, string? error)
 				{
 					if (!success)
