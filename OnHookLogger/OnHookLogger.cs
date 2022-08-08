@@ -74,8 +74,27 @@ namespace OnHookLogger
 				if (handler == null)
 					continue;
 
-				var d = Delegate.CreateDelegate(e.Event.EventHandlerType, handler);
-				e.Event.AddEventHandler(null, d);
+				try
+				{
+					var d = Delegate.CreateDelegate(e.Event.EventHandlerType, handler);
+					MethodInfo addMethod = e.Event.GetAddMethod(true);
+					addMethod.Invoke(null, new object[] { d });
+					// instead of using the normal e.Event.AddEventHandler, i use this one because
+					// the AddEventHandler throws if the AddMethod is not public, but this way it doesn't matter if it's
+					// public or not
+				}
+				catch (InvalidOperationException ioex)
+				{
+					LogError($"Error caused by {e}");
+					LogError(ioex);
+				}
+				catch (TargetInvocationException tie)
+				{
+					LogError($"Error caused by {e}");
+					LogError(tie.Message);
+					LogError(tie.InnerException.Message);
+					LogError(tie.StackTrace);
+				}
 			}
 		}
 
@@ -95,7 +114,7 @@ namespace OnHookLogger
 		{
 			var results = new List<EventSearchResult>();
 			
-			foreach (Type t in ReturnClasses(GetHookTypes()))
+			foreach (Type t in ReturnClasses(GetHookTypes()).Where(x => !IsDelegateType(x)))
 			{
 				foreach (EventInfo e in t.GetEvents().Where(x => !x.Name.Contains("ctor")))
 				{
@@ -120,6 +139,11 @@ namespace OnHookLogger
 			}
 
 			return results;
+		}
+
+		private bool IsDelegateType(Type onType)
+		{
+			return onType.GetMethods().Any(x => x.Name.Contains("Invoke"));
 		}
 	}
 }
