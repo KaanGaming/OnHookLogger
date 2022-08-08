@@ -1,5 +1,7 @@
 ﻿using Modding;
 using System;
+using System.Linq;
+using System.Reflection;
 
 namespace OnHookLogger
 {
@@ -32,8 +34,28 @@ namespace OnHookLogger
 			Log("Initializing");
 
 			// put additional initialization logic here
+			AttachLoggersToEvents();
 
 			Log("Initialized");
+		}
+
+		private void AttachLoggersToEvents()
+		{
+			foreach (Type t in GetHookTypes())
+			{
+				foreach (EventInfo e in t.GetEvents())
+				{
+					// subscribe to event in e
+					// then create a method that will log whenever that event happens
+				}
+			}
+		}
+
+		private Type[] GetHookTypes()
+		{
+			return Assembly.GetAssembly(typeof(On.Achievement)).GetTypes()
+				.Where(t => t.Namespace != null && t.Namespace.StartsWith("On"))
+				.ToArray();
 		}
 	}
 }
