@@ -57,8 +57,18 @@ namespace OnHookLogger
 			var dele = GetDelegate(e.Event);
 			MethodBuilder h = DefineMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler", dele.mi.ReturnType, dele.pars);
 
+			int paramsNum = dele.pars.Length;
+
 			ILGenerator il = h.GetILGenerator();
-			il.EmitCall(OpCodes.Call, callback.GetMethodInfo(), new Type[]{});
+			il.Emit(OpCodes.Call, callback.GetMethodInfo());
+			il.Emit(OpCodes.Ldarg_0); // orig
+			il.Emit(OpCodes.Ldarg_1); // self
+			if (paramsNum > 2)
+			{
+				for (int i = 2; i < paramsNum; i++)
+					il.Emit(OpCodes.Ldarg_S, i); // the remaining variables that the On. hook may have
+			}
+			il.Emit(OpCodes.Callvirt, dele.mi); // orig(self, ...remaining parameters...)
 			il.Emit(OpCodes.Ret);
 
 			_trackedMethods.Add(e);
