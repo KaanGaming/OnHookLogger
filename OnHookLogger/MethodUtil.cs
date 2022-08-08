@@ -62,13 +62,12 @@ namespace OnHookLogger
 			ILGenerator il = h.GetILGenerator();
 			il.Emit(OpCodes.Call, callback.GetMethodInfo());
 			il.Emit(OpCodes.Ldarg_0); // orig
-			il.Emit(OpCodes.Ldarg_1); // self
-			if (paramsNum > 2)
+			if (paramsNum > 1)
 			{
-				for (int i = 2; i < paramsNum; i++)
+				for (int i = 1; i < paramsNum; i++)
 					il.Emit(OpCodes.Ldarg_S, i); // the remaining variables that the On. hook may have
 			}
-			il.Emit(OpCodes.Callvirt, dele.mi); // orig(self, ...remaining parameters...)
+			il.Emit(OpCodes.Callvirt, dele.mi); // orig(other parameters like self, etc.)
 			il.Emit(OpCodes.Ret);
 
 			_trackedMethods.Add(e);
