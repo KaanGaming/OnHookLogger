@@ -45,35 +45,26 @@ namespace OnHookLogger
 
 		private void AttachLoggersToEvents()
 		{
-			List<EventInfo> eList = new List<EventInfo>();
-
-			// TODO: Search nested classes for events as well, ignore events named ctor (like the one in On.ObjectBounce.ctor cause apparently that causes problems?)
-			foreach (Type t in GetHookTypes())
-			{
-				foreach (EventInfo e in t.GetEvents())
-				{
-					eList.Add(e);
-				}
-			}
-
-			foreach (EventInfo e in eList)
+			List<EventSearchRecord> eList = SearchEvents();
+			
+			foreach (EventSearchRecord e in eList)
 			{
 				_methodUtil.CreateListener(e, delegate
 				{
-					Log($"{e.Name} was activated");
+					Log($"{string.Join(".", e.DeclaringTypes) + "." + e.Event.Name} was activated");
 				});
 			}
 
 			_methodUtil.FinalizeType();
 
-			foreach (EventInfo e in eList)
+			foreach (EventSearchRecord e in eList)
 			{
-				MethodInfo? handler = _methodUtil.GetListener(e.DeclaringType.Name, e.Name);
+				MethodInfo? handler = _methodUtil.GetListener(e, e.Event.Name);
 				if (handler == null)
 					continue;
 
-				var d = Delegate.CreateDelegate(e.EventHandlerType, handler);
-				e.AddEventHandler(null, d);
+				var d = Delegate.CreateDelegate(e.Event.EventHandlerType, handler);
+				e.Event.AddEventHandler(null, d);
 			}
 		}
 
@@ -82,6 +73,42 @@ namespace OnHookLogger
 			return Assembly.GetAssembly(typeof(On.Achievement)).GetTypes()
 				.Where(t => t.Namespace != null && t.Namespace.StartsWith("On"))
 				.ToArray();
+		}
+
+		private List<EventSearchRecord> SearchEvents()
+		{
+			List<EventSearchRecord> results = new List<EventSearchRecord>();
+
+			void Recursive(Type[] types)
+			{
+				foreach (Type t in types)
+				{
+					foreach (EventInfo e in t.GetEvents().Where(x => !x.Name.Contains("ctor")))
+					{
+						results.Add(new EventSearchRecord(GetDeclaringTypes(e.DeclaringType), e));
+					}
+
+					Type[] nestedTypes = t.GetNestedTypes();
+					if (nestedTypes.Length != 0)
+						Recursive(nestedTypes);
+				}
+			}
+
+			string[] GetDeclaringTypes(Type type, List<string>? prevList = null)
+			{
+				List<string> typeList = prevList ?? new List<string>();
+
+				if (type.DeclaringType != null)
+				{
+					typeList.Add(type.DeclaringType.Name);
+					GetDeclaringTypes(type.DeclaringType, typeList);
+				}
+				return typeList.ToArray();
+			}
+
+			Recursive(GetHookTypes());
+
+			return results;
 		}
 	}
 }

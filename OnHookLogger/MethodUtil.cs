@@ -46,6 +46,7 @@ namespace OnHookLogger
 			return (invoker, pars);
 		}
 
+		// TODO: Support EventSearchRecord record type for both CreateListener and GetListener
 		public void CreateListener(EventInfo e, Action callback)
 		{
 			var dele = GetDelegate(e);
@@ -53,6 +54,7 @@ namespace OnHookLogger
 
 			ILGenerator il = h.GetILGenerator();
 			il.EmitCall(OpCodes.Call, callback.GetMethodInfo(), new Type[]{});
+			il.Emit(OpCodes.Ret);
 		}
 
 		public void FinalizeType()
