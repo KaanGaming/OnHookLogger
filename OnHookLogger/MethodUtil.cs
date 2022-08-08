@@ -59,5 +59,17 @@ namespace OnHookLogger
 		{
 			finalProduct = _handlerType.CreateType();
 		}
+
+		/// <summary>
+		/// Must call <see cref="FinalizeType"/> before using this method
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
+		public MethodInfo? GetListener(string name)
+		{
+			if (finalProduct == null)
+				throw new Exception("MethodUtil's FinalizeType was not called");
+			return finalProduct.GetMethod($"{name}_Handler");
+		}
 	}
 }
