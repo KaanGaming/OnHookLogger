@@ -49,7 +49,7 @@ namespace OnHookLogger
 		public void CreateListener(EventInfo e, Action callback)
 		{
 			var dele = GetDelegate(e);
-			MethodBuilder h = DefineMethod($"{e.Name}_Handler", dele.mi.ReturnType, dele.pars);
+			MethodBuilder h = DefineMethod($"{e.DeclaringType.Name}_{e.Name}_Handler", dele.mi.ReturnType, dele.pars);
 
 			ILGenerator il = h.GetILGenerator();
 			il.EmitCall(OpCodes.Call, callback.GetMethodInfo(), new Type[]{});
@@ -63,13 +63,14 @@ namespace OnHookLogger
 		/// <summary>
 		/// Must call <see cref="FinalizeType"/> before using this method
 		/// </summary>
+		/// <param name="declaringType"></param>
 		/// <param name="name"></param>
 		/// <returns></returns>
-		public MethodInfo? GetListener(string name)
+		public MethodInfo? GetListener(string declaringType, string name)
 		{
 			if (finalProduct == null)
 				throw new Exception("MethodUtil's FinalizeType was not called");
-			return finalProduct.GetMethod($"{name}_Handler");
+			return finalProduct.GetMethod($"{declaringType}_{name}_Handler");
 		}
 	}
 }

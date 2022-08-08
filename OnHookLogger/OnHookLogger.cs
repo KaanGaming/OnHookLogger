@@ -1,5 +1,6 @@
 ﻿using Modding;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -28,12 +29,15 @@ namespace OnHookLogger
 			_instance = this;
 		}
 
+		private MethodUtil _methodUtil;
+
 		// if you need preloads, you will need to implement GetPreloadNames and use the other signature of Initialize.
 		public override void Initialize()
 		{
 			Log("Initializing");
 
 			// put additional initialization logic here
+			_methodUtil = new MethodUtil("OnHookLoggerDynamic");
 			AttachLoggersToEvents();
 
 			Log("Initialized");
@@ -41,13 +45,35 @@ namespace OnHookLogger
 
 		private void AttachLoggersToEvents()
 		{
+			List<EventInfo> eList = new List<EventInfo>();
+
+			// TODO: Search nested classes for events as well, ignore events named ctor (like the one in On.ObjectBounce.ctor cause apparently that causes problems?)
 			foreach (Type t in GetHookTypes())
 			{
 				foreach (EventInfo e in t.GetEvents())
 				{
-					// subscribe to event in e
-					// then create a method that will log whenever that event happens
+					eList.Add(e);
 				}
+			}
+
+			foreach (EventInfo e in eList)
+			{
+				_methodUtil.CreateListener(e, delegate
+				{
+					Log($"{e.Name} was activated");
+				});
+			}
+
+			_methodUtil.FinalizeType();
+
+			foreach (EventInfo e in eList)
+			{
+				MethodInfo? handler = _methodUtil.GetListener(e.DeclaringType.Name, e.Name);
+				if (handler == null)
+					continue;
+
+				var d = Delegate.CreateDelegate(e.EventHandlerType, handler);
+				e.AddEventHandler(null, d);
 			}
 		}
 
