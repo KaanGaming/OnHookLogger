@@ -74,8 +74,8 @@ namespace OnHookLogger
 				if (handler == null)
 					continue;
 
-				//var d = Delegate.CreateDelegate(e.Event.EventHandlerType, handler);
-				//e.Event.AddEventHandler(null, d);
+				var d = Delegate.CreateDelegate(e.Event.EventHandlerType, handler);
+				e.Event.AddEventHandler(null, d);
 			}
 		}
 
@@ -102,7 +102,6 @@ namespace OnHookLogger
 					EventSearchResult result = new EventSearchResult(
 						GetDeclaringTypes(e.DeclaringType), e);
 					results.Add(result);
-					Log(result);
 				}
 			}
 
