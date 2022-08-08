@@ -32,21 +32,33 @@ namespace OnHookLogger
 				CallingConventions.Standard, returnType, paramTypes);
 		}
 
-		private (MethodInfo mi, Type[] pars) GetDelegate(EventInfo e)
+		private (MethodInfo mi, MethodInfo orig, Type[] pars) GetDelegate(EventInfo e)
 		{
 			Type dele = e.EventHandlerType;
-			MethodInfo? invoker = dele.GetMethod("Invoke");
-			if (invoker == null)
-				throw new ArgumentException("Provided event's delegate has no method called Invoke");
+			MethodInfo invoker = GetInvoker(dele);
 
 			ParameterInfo[] parInfos = invoker.GetParameters();
+			MethodInfo? orig = parInfos[0].ParameterType
+				.GetMethod("Invoke", BindingFlags.NonPublic | BindingFlags.Public);
+			if (orig == null)
+				throw new InvalidOperationException("Delegate doesn't contain orig");
 			Type[] pars = new Type[parInfos.Length];
 			for (int i = 0; i < pars.Length; i++)
 			{
 				pars[i] = parInfos[i].ParameterType;
 			}
 
-			return (invoker, pars);
+			return (invoker, orig, pars);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="t">Must be a <see cref="Delegate"/></param>
+		/// <returns></returns>
+		private MethodInfo GetInvoker(Type t)
+		{
+			return t.GetMethod("Invoke", BindingFlags.NonPublic | BindingFlags.Public) ?? throw new ArgumentException("Type doesn't contain Invoke method");
 		}
 		
 		public void CreateListener(EventSearchResult e, Action callback)
@@ -67,8 +79,10 @@ namespace OnHookLogger
 				for (int i = 1; i < paramsNum; i++)
 					il.Emit(OpCodes.Ldarg_S, i); // the remaining variables that the On. hook may have
 			}
-			il.Emit(OpCodes.Callvirt, dele.mi); // orig(other parameters like self, etc.)
+			il.Emit(OpCodes.Callvirt, dele.orig); // orig(other parameters like self, etc.)
 			il.Emit(OpCodes.Ret);
+
+			// TODO: scrap code above, create helper methods in C# to handle dynamically
 
 			_trackedMethods.Add(e);
 		}
