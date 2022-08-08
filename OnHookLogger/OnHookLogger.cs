@@ -1,6 +1,7 @@
 ﻿using Modding;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
@@ -45,9 +46,9 @@ namespace OnHookLogger
 
 		private void AttachLoggersToEvents()
 		{
-			List<EventSearchRecord> eList = SearchEvents();
-			
-			foreach (EventSearchRecord e in eList)
+			List<EventSearchResult> eList = SearchEvents();
+
+			foreach (EventSearchResult e in eList)
 			{
 				_methodUtil.CreateListener(e, delegate
 				{
@@ -57,14 +58,18 @@ namespace OnHookLogger
 
 			_methodUtil.FinalizeType();
 
-			foreach (EventSearchRecord e in eList)
+			foreach (EventSearchResult e in eList)
 			{
-				MethodInfo? handler = _methodUtil.GetListener(e);
+				MethodInfo? handler = _methodUtil.GetListenerSafe(e, delegate(bool success, string? error)
+				{
+					if (!success)
+						LogError(error);
+				});
 				if (handler == null)
 					continue;
 
-				var d = Delegate.CreateDelegate(e.Event.EventHandlerType, handler);
-				e.Event.AddEventHandler(null, d);
+				//var d = Delegate.CreateDelegate(e.Event.EventHandlerType, handler);
+				//e.Event.AddEventHandler(null, d);
 			}
 		}
 
@@ -74,39 +79,40 @@ namespace OnHookLogger
 				.Where(t => t.Namespace != null && t.Namespace.StartsWith("On"))
 				.ToArray();
 		}
-
-		private List<EventSearchRecord> SearchEvents()
+		
+		private Type[] ReturnClasses(Type[] types)
 		{
-			List<EventSearchRecord> results = new List<EventSearchRecord>();
+			return types.Where(x => x.IsClass && !x.IsSubclassOf(typeof(Delegate))).ToArray();
+		}
 
-			void Recursive(Type[] types)
+		private List<EventSearchResult> SearchEvents()
+		{
+			var results = new List<EventSearchResult>();
+			
+			foreach (Type t in ReturnClasses(GetHookTypes()))
 			{
-				foreach (Type t in types)
+				foreach (EventInfo e in t.GetEvents().Where(x => !x.Name.Contains("ctor")))
 				{
-					foreach (EventInfo e in t.GetEvents().Where(x => !x.Name.Contains("ctor")))
-					{
-						results.Add(new EventSearchRecord(GetDeclaringTypes(e.DeclaringType), e));
-					}
-
-					Type[] nestedTypes = t.GetNestedTypes();
-					if (nestedTypes.Length != 0)
-						Recursive(nestedTypes);
+					EventSearchResult result = new EventSearchResult(
+						GetDeclaringTypes(e.DeclaringType), e);
+					results.Add(result);
+					Log(result);
 				}
 			}
 
 			string[] GetDeclaringTypes(Type type, List<string>? prevList = null)
 			{
 				List<string> typeList = prevList ?? new List<string>();
+				if (prevList == null)
+					typeList.Add(type.Name);
 
 				if (type.DeclaringType != null)
 				{
 					typeList.Add(type.DeclaringType.Name);
 					GetDeclaringTypes(type.DeclaringType, typeList);
 				}
-				return typeList.ToArray();
+				return typeList.ToArray().Reverse().ToArray();
 			}
-
-			Recursive(GetHookTypes());
 
 			return results;
 		}
