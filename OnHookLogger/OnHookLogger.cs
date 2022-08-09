@@ -31,6 +31,7 @@ namespace OnHookLogger
 		}
 
 		private MethodUtil _methodUtil;
+		private Stopwatch _sw = new Stopwatch();
 
 		// if you need preloads, you will need to implement GetPreloadNames and use the other signature of Initialize.
 		public override void Initialize()
@@ -39,6 +40,7 @@ namespace OnHookLogger
 
 			// TODO: add timer ticking from start of attachment to the end of attachment
 			// put additional initialization logic here
+			_sw.Start();
 			_methodUtil = new MethodUtil("OnHookLoggerDynamic");
 			AttachLoggersToEvents();
 
@@ -61,9 +63,6 @@ namespace OnHookLogger
 
 			for (var i = 0; i < eList.Count; i++)
 			{
-				if (i % 100 == 0)
-					Log($"Attach progress: {i}/{eList.Count}");
-
 				EventSearchResult e = eList[i];
 				MethodInfo? handler = _methodUtil.GetListenerSafe(e, delegate(bool success, string? error)
 				{
