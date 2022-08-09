@@ -37,6 +37,7 @@ namespace OnHookLogger
 		{
 			Log("Initializing");
 
+			// TODO: add timer ticking from start of attachment to the end of attachment
 			// put additional initialization logic here
 			_methodUtil = new MethodUtil("OnHookLoggerDynamic");
 			AttachLoggersToEvents();
