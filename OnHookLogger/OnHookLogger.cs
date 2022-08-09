@@ -44,16 +44,18 @@ namespace OnHookLogger
 			Log("Initialized");
 		}
 
+		private void OnHookListener(string name)
+		{
+			Log($"{name} was activated");
+		}
+
 		private void AttachLoggersToEvents()
 		{
 			List<EventSearchResult> eList = SearchEvents();
 
 			foreach (EventSearchResult e in eList)
 			{
-				_methodUtil.CreateListener(e, delegate
-				{
-					Log($"{string.Join(".", e.DeclaringTypes) + "." + e.Event.Name} was activated");
-				});
+				_methodUtil.CreateListener(e, OnHookListener);
 			}
 
 			_methodUtil.FinalizeType();

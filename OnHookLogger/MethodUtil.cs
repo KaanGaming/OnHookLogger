@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using GlobalEnums;
 using JetBrains.Annotations;
 
 namespace OnHookLogger
@@ -14,13 +16,15 @@ namespace OnHookLogger
 		public MethodUtil(string asmName)
 		{
 			AssemblyName aName = new AssemblyName(asmName);
-			AssemblyBuilder asmb = AssemblyBuilder.DefineDynamicAssembly(aName, AssemblyBuilderAccess.Run);
+			AssemblyBuilder asmb = AssemblyBuilder.DefineDynamicAssembly(aName, AssemblyBuilderAccess.RunAndSave);
 			ModuleBuilder mb = asmb.DefineDynamicModule(aName.Name);
 			TypeBuilder tb = mb.DefineType("Handler", TypeAttributes.Class);
 
+			_asmB = asmb;
 			_handlerType = tb;
 		}
 
+		private AssemblyBuilder _asmB;
 		private TypeBuilder _handlerType;
 		public Type? finalProduct;
 
@@ -57,7 +61,7 @@ namespace OnHookLogger
 			return t.GetMethod("Invoke") ?? throw new ArgumentException("Type doesn't contain Invoke method");
 		}
 		
-		public void CreateListener(EventSearchResult e, Action callback)
+		public void CreateListener(EventSearchResult e, Action<string> callback)
 		{
 			if (_trackedMethods.Contains(e))
 				return;
@@ -65,9 +69,14 @@ namespace OnHookLogger
 			var dele = GetDelegate(e.Event);
 			MethodBuilder h = DefineMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler", dele.mi.ReturnType, dele.pars);
 
-			//int paramsNum = dele.pars.Length;
+			int paramsNum = dele.pars.Length;
+			
+			MethodInfo? orig = dele.pars[0].GetMethod("Invoke");
 
-			//ILGenerator il = h.GetILGenerator();
+			if (orig == null)
+				return;
+
+			ILGenerator il = h.GetILGenerator();
 			//il.Emit(OpCodes.Call, callback.GetMethodInfo());
 			//il.Emit(OpCodes.Ldarg_0); // orig
 			//if (paramsNum > 1)
@@ -78,56 +87,47 @@ namespace OnHookLogger
 			//il.Emit(OpCodes.Callvirt, dele.orig); // orig(other parameters like self, etc.)
 			//il.Emit(OpCodes.Ret);
 
-			MethodType mType = MethodType.None;
-			if (dele.mi.ReturnType != null)
-				mType = mType | MethodType.Returns;
-			if (dele.pars.Length > 0)
-				mType = mType | MethodType.HasArgs;
+			//il.Emit(OpCodes.Call, callback.GetMethodInfo()); // Call the callback that the user of util has defined
 
-			MethodInfo callOrig = typeof(ILHelper).GetMethod("CallOrig");
-			MethodInfo callOrigRet = typeof(ILHelper).GetMethod("CallOrigWithReturn");
-			MethodInfo callOrigArgs = typeof(ILHelper).GetMethod("CallOrigWithArgs");
-			MethodInfo callOrigArgsRet = typeof(ILHelper).GetMethod("CallOrigWithArgsAndReturn");
-
-			ILGenerator il = h.GetILGenerator();
-			il.Emit(OpCodes.Call, callback.GetMethodInfo());
-
-			void LoadArguments(ILGenerator il, int paramsCount, int startingIndex = 0)
+			void log(string txt) // TODO: log functions are subject to delete later when branch work is done
 			{
-				for (int i = startingIndex; i < paramsCount; i++)
-					il.Emit(OpCodes.Ldarg_S, i);
+				if (h.Name == "Language_Get_string_string_Handler")
+					OnHookLogger.Instance.Log(txt);
 			}
-
-			int paramsCount = dele.pars.Length;
-
-			switch (mType)
+			
+			// BUG: calling the callback parameter of this function doesn't work
+			
+			log($"{e} - {paramsNum} parameters");
+			string paramstxt = $"these parameters are: {string.Join(", ", dele.pars.Select(x => x.Name))}";
+			log(paramstxt);
+			
+			il.Emit(OpCodes.Ldstr, e.ToString());
+			il.Emit(OpCodes.Callvirt, callback.GetMethodInfo());
+			
+			log("Ldarg_0");
+			il.Emit(OpCodes.Ldarg_0); // Push orig into the top of evaluation stack
+			for (int i = 1; i < paramsNum; i++)
 			{
-				case MethodType.None:
-					il.Emit(OpCodes.Ldarg_0);
-					il.EmitCall(OpCodes.Call, callOrig, null);
-					break;
-				case MethodType.HasArgs:
-					LoadArguments(il, paramsCount);
-					il.EmitCall(OpCodes.Call, callOrigArgs, dele.pars);
-					break;
-				case MethodType.Returns:
-					LoadArguments(il, paramsCount);
-					il.EmitCall(OpCodes.Callvirt, callOrigRet, null);
-					break;
-				case MethodType.HasArgs | MethodType.Returns:
-					LoadArguments(il, paramsCount);
-					il.EmitCall(OpCodes.Callvirt, callOrigArgsRet, dele.pars);
-					break;
+				il.Emit(OpCodes.Ldarg_S, i); // Push other parameters to the eval stack
+				log("Ldarg_S     " + i);
 			}
-
-			il.Emit(OpCodes.Ret);
+			log($"Callvirt     {dele.pars[0].FullName}");
+			il.Emit(OpCodes.Callvirt, orig); // Call delegate
+			log("Ret");
+			il.Emit(OpCodes.Ret); // Return the top of eval stack, if there's any return value returned by orig
 
 			_trackedMethods.Add(e);
 		}
 
 		public void FinalizeType()
 		{
+			_asmB.Save("test.dll");
 			finalProduct = _handlerType.CreateType();
+		}
+
+		private void TestIL(On.HeroController.orig_Attack orig, HeroController self, AttackDirection dir)
+		{
+			orig(self, dir);
 		}
 
 		/// <summary>
