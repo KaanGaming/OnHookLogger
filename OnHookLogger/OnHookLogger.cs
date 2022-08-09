@@ -32,6 +32,12 @@ namespace OnHookLogger
 
 		private MethodUtil _methodUtil;
 		private Stopwatch _sw = new Stopwatch();
+		private TimeSpan? _lastTrigger = null;
+
+		private void LogStopwatch(string job)
+		{
+			Log($"Job {job} completed in {_sw.Elapsed - (_lastTrigger ?? TimeSpan.Zero)}");
+		}
 
 		// if you need preloads, you will need to implement GetPreloadNames and use the other signature of Initialize.
 		public override void Initialize()
@@ -42,6 +48,7 @@ namespace OnHookLogger
 			// put additional initialization logic here
 			_sw.Start();
 			_methodUtil = new MethodUtil("OnHookLoggerDynamic");
+			LogStopwatch("MethodUtil Initialization");
 			AttachLoggersToEvents();
 
 			Log("Initialized");
@@ -58,6 +65,7 @@ namespace OnHookLogger
 					Log($"{string.Join(".", e.DeclaringTypes) + "." + e.Event.Name} was activated");
 				});
 			}
+			LogStopwatch("Create Listeners for On. Hooks");
 
 			_methodUtil.FinalizeType();
 
@@ -94,6 +102,8 @@ namespace OnHookLogger
 					LogError(tie.StackTrace);
 				}
 			}
+
+			LogStopwatch("Add Event Listeners");
 		}
 
 		private Type[] GetHookTypes()
