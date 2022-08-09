@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Reflection;
 
 namespace OnHookLogger
@@ -21,12 +22,13 @@ namespace OnHookLogger
 
 		public MethodInfo GetOrig()
 		{
-			throw new NotImplementedException();
+			return paramTypes[0].GetMethod("Invoke")
+				?? throw new InvalidOperationException("The first parameter of hook is not a delegate (orig)");
 		}
 
 		public Type[] GetParamTypes()
 		{
-			throw new NotImplementedException();
+			return parameters.Select(x => x.ParameterType).ToArray();
 		}
 
 		public int ParameterCount => throw new NotImplementedException();
