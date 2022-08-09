@@ -31,15 +31,28 @@ namespace OnHookLogger
 		}
 
 		private MethodUtil _methodUtil;
+		private Stopwatch _sw = new();
+		private Dictionary<string, TimeSpan> _lastTriggers = new();
+
+		private void LogStopwatch(string job, string category = "main")
+		{
+			if (!_lastTriggers.ContainsKey(category))
+				_lastTriggers.Add(category, TimeSpan.Zero);
+			Log($"Job {job} completed in {_sw.Elapsed - _lastTriggers[category]}");
+			_lastTriggers[category] = _sw.Elapsed;
+		}
 
 		// if you need preloads, you will need to implement GetPreloadNames and use the other signature of Initialize.
 		public override void Initialize()
 		{
 			Log("Initializing");
-
+			
 			// put additional initialization logic here
+			_sw.Start();
 			_methodUtil = new MethodUtil("OnHookLoggerDynamic");
+			LogStopwatch("MethodUtil Initialization");
 			AttachLoggersToEvents();
+			LogStopwatch("Attach Loggers to Events");
 
 			Log("Initialized");
 		}
@@ -57,13 +70,14 @@ namespace OnHookLogger
 			{
 				_methodUtil.CreateListener(e, OnHookListener);
 			}
+			LogStopwatch("Create Listeners for On. Hooks", "attach");
 
 			_methodUtil.FinalizeType();
 
 			for (var i = 0; i < eList.Count; i++)
 			{
-				if (i % 100 == 0)
-					Log($"Attach progress: {i}/{eList.Count}");
+				if (i % 1000 == 0 && i != 0)
+					LogStopwatch($"Add listeners for 1000 events ({i} out of {eList.Count})", "addListener");
 
 				EventSearchResult e = eList[i];
 				MethodInfo? handler = _methodUtil.GetListenerSafe(e, delegate(bool success, string? error)
@@ -96,6 +110,8 @@ namespace OnHookLogger
 					LogError(tie.StackTrace);
 				}
 			}
+
+			LogStopwatch("Add Event Listeners", "attach");
 		}
 
 		private Type[] GetHookTypes()
