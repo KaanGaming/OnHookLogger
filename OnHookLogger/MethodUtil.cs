@@ -36,21 +36,6 @@ namespace OnHookLogger
 				CallingConventions.Standard, returnType, paramTypes);
 		}
 
-		private (MethodInfo mi, Type[] pars) GetDelegate(EventInfo e)
-		{
-			Type dele = e.EventHandlerType;
-			MethodInfo invoker = GetInvoker(dele);
-
-			ParameterInfo[] parInfos = invoker.GetParameters();
-			Type[] pars = new Type[parInfos.Length];
-			for (int i = 0; i < pars.Length; i++)
-			{
-				pars[i] = parInfos[i].ParameterType;
-			}
-
-			return (invoker, pars);
-		}
-
 		/// <summary>
 		/// 
 		/// </summary>
@@ -66,15 +51,13 @@ namespace OnHookLogger
 			if (_trackedMethods.Contains(e))
 				return;
 
-			var dele = GetDelegate(e.Event);
-			MethodBuilder h = DefineMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler", dele.mi.ReturnType, dele.pars);
+			var hookInfo = new HookInfo(e.Event);
+			MethodBuilder h = DefineMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler",
+				hookInfo.invoker.ReturnType, hookInfo.paramTypes);
 
-			int paramsNum = dele.pars.Length;
-			
-			MethodInfo? orig = dele.pars[0].GetMethod("Invoke");
+			int paramsNum = hookInfo.ParameterCount;
 
-			if (orig == null)
-				return;
+			MethodInfo orig = hookInfo.GetOrig();
 
 			ILGenerator il = h.GetILGenerator();
 			//il.Emit(OpCodes.Call, callback.GetMethodInfo());
@@ -98,7 +81,7 @@ namespace OnHookLogger
 			// BUG: calling the callback parameter of this function doesn't work
 			
 			log($"{e} - {paramsNum} parameters");
-			string paramstxt = $"these parameters are: {string.Join(", ", dele.pars.Select(x => x.Name))}";
+			string paramstxt = $"these parameters are: {string.Join(", ", hookInfo.paramTypes.Select(x => x.Name))}";
 			log(paramstxt);
 			
 			il.Emit(OpCodes.Ldstr, e.ToString());
@@ -111,7 +94,7 @@ namespace OnHookLogger
 				il.Emit(OpCodes.Ldarg_S, i); // Push other parameters to the eval stack
 				log("Ldarg_S     " + i);
 			}
-			log($"Callvirt     {dele.pars[0].FullName}");
+			log($"Callvirt     {hookInfo.paramTypes[0].FullName}");
 			il.Emit(OpCodes.Callvirt, orig); // Call delegate
 			log("Ret");
 			il.Emit(OpCodes.Ret); // Return the top of eval stack, if there's any return value returned by orig
