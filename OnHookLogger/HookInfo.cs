@@ -31,6 +31,6 @@ namespace OnHookLogger
 			return parameters.Select(x => x.ParameterType).ToArray();
 		}
 
-		public int ParameterCount => throw new NotImplementedException();
+		public int ParameterCount => parameters.Length;
 	}
 }
