@@ -46,7 +46,7 @@ namespace OnHookLogger
 			return t.GetMethod("Invoke") ?? throw new ArgumentException("Type doesn't contain Invoke method");
 		}
 		
-		public void CreateListener(EventSearchResult e, Action<string> callback)
+		public void CreateListener(EventSearchResult e, Action<string> callback, object callbackSelf)
 		{
 			if (_trackedMethods.Contains(e))
 				return;
@@ -60,43 +60,18 @@ namespace OnHookLogger
 			MethodInfo orig = hookInfo.GetOrig();
 
 			ILGenerator il = h.GetILGenerator();
-			//il.Emit(OpCodes.Call, callback.GetMethodInfo());
-			//il.Emit(OpCodes.Ldarg_0); // orig
-			//if (paramsNum > 1)
-			//{
-			//	for (int i = 1; i < paramsNum; i++)
-			//		il.Emit(OpCodes.Ldarg_S, i); // the remaining variables that the On. hook may have
-			//}
-			//il.Emit(OpCodes.Callvirt, dele.orig); // orig(other parameters like self, etc.)
-			//il.Emit(OpCodes.Ret);
 
-			//il.Emit(OpCodes.Call, callback.GetMethodInfo()); // Call the callback that the user of util has defined
-
-			void log(string txt) // TODO: log functions are subject to delete later when branch work is done
-			{
-				if (h.Name == "Language_Get_string_string_Handler")
-					OnHookLogger.Instance.Log(txt);
-			}
-			
 			// BUG: calling the callback parameter of this function doesn't work
-			
-			log($"{e} - {paramsNum} parameters");
-			string paramstxt = $"these parameters are: {string.Join(", ", hookInfo.paramTypes.Select(x => x.Name))}";
-			log(paramstxt);
 			
 			il.Emit(OpCodes.Ldstr, e.ToString());
 			il.Emit(OpCodes.Callvirt, callback.GetMethodInfo());
 			
-			log("Ldarg_0");
 			il.Emit(OpCodes.Ldarg_0); // Push orig into the top of evaluation stack
 			for (int i = 1; i < paramsNum; i++)
 			{
 				il.Emit(OpCodes.Ldarg_S, i); // Push other parameters to the eval stack
-				log("Ldarg_S     " + i);
 			}
-			log($"Callvirt     {hookInfo.paramTypes[0].FullName}");
 			il.Emit(OpCodes.Callvirt, orig); // Call delegate
-			log("Ret");
 			il.Emit(OpCodes.Ret); // Return the top of eval stack, if there's any return value returned by orig
 
 			_trackedMethods.Add(e);
