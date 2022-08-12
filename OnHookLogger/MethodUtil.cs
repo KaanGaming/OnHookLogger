@@ -46,7 +46,7 @@ namespace OnHookLogger
 			return t.GetMethod("Invoke") ?? throw new ArgumentException("Type doesn't contain Invoke method");
 		}
 		
-		public void CreateListener(EventSearchResult e, Action<string> callback, object callbackSelf)
+		public void CreateListener(EventSearchResult e, MethodInfo callback)
 		{
 			if (_trackedMethods.Contains(e))
 				return;
@@ -56,23 +56,19 @@ namespace OnHookLogger
 				hookInfo.invoker.ReturnType, hookInfo.paramTypes);
 
 			int paramsNum = hookInfo.ParameterCount;
-
 			MethodInfo orig = hookInfo.GetOrig();
 
 			ILGenerator il = h.GetILGenerator();
-
-			// BUG: calling the callback parameter of this function doesn't work
 			
 			il.Emit(OpCodes.Ldstr, e.ToString());
-			il.Emit(OpCodes.Callvirt, callback.GetMethodInfo());
+			il.Emit(OpCodes.Call, callback); // non static methods need not to be called with callvirt
 			
-			il.Emit(OpCodes.Ldarg_0); // Push orig into the top of evaluation stack
-			for (int i = 1; i < paramsNum; i++)
+			for (int i = 0; i < paramsNum; i++)
 			{
-				il.Emit(OpCodes.Ldarg_S, i); // Push other parameters to the eval stack
+				il.Emit(OpCodes.Ldarg, i);
 			}
-			il.Emit(OpCodes.Callvirt, orig); // Call delegate
-			il.Emit(OpCodes.Ret); // Return the top of eval stack, if there's any return value returned by orig
+			il.Emit(OpCodes.Callvirt, orig);
+			il.Emit(OpCodes.Ret);
 
 			_trackedMethods.Add(e);
 		}
