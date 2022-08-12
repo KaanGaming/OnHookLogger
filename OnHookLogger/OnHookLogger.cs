@@ -46,10 +46,6 @@ namespace OnHookLogger
 		public override void Initialize()
 		{
 			Log("Initializing");
-
-			On.Language.Language.Get_string_string += Language_Get_string_string;
-			On.HealthManager.Hit += HealthManager_Hit;
-			On.HeroController.Die += HeroController_Die;
 			
 			// put additional initialization logic here
 			_sw.Start();
@@ -59,24 +55,6 @@ namespace OnHookLogger
 			LogStopwatch("Attach Loggers to Events");
 
 			Log("Initialized");
-		}
-
-		private System.Collections.IEnumerator HeroController_Die(On.HeroController.orig_Die orig, HeroController self)
-		{
-			OnHookListener("test die");
-			return orig(self);
-		}
-
-		private void HealthManager_Hit(On.HealthManager.orig_Hit orig, HealthManager self, HitInstance hitInstance)
-		{
-			OnHookListener("test hit");
-			orig(self, hitInstance);
-		}
-
-		private string Language_Get_string_string(On.Language.Language.orig_Get_string_string orig, string key, string sheetTitle)
-		{
-			OnHookListener("test lang");
-			return orig(key, sheetTitle);
 		}
 
 		public static void OnHookListener(string name)
