@@ -24,13 +24,13 @@ namespace OnHookLogger
 		}
 
 		public override string GetVersion() => GetType().Assembly.GetName().Version.ToString();
-
-		public OnHookLogger() : base()
+		
+		public OnHookLogger() : base("On. Hook Logger")
 		{
 			_instance = this;
 		}
 
-		private MethodUtil _methodUtil;
+		private MethodUtil? _methodUtil;
 		private Stopwatch _sw = new();
 		private Dictionary<string, TimeSpan> _lastTriggers = new();
 
@@ -86,11 +86,15 @@ namespace OnHookLogger
 
 		private void AttachLoggersToEvents()
 		{
+			if (_methodUtil == null)
+				return;
+
 			List<EventSearchResult> eList = SearchEvents();
 
 			foreach (EventSearchResult e in eList)
 			{
-				_methodUtil.CreateListener(e, GetType().GetMethod("OnHookListener", BindingFlags.Public | BindingFlags.Static));
+				_methodUtil.CreateListener(e, GetType().GetMethod("OnHookListener", BindingFlags.Public | BindingFlags.Static)
+				                       ?? throw new Exception("OnHookListener() in OnHookLogger doesn't exist"));
 			}
 			LogStopwatch("Create Listeners for On. Hooks", "attach");
 
@@ -128,7 +132,8 @@ namespace OnHookLogger
 				{
 					LogError($"Error caused by {e}");
 					LogError(tie.Message);
-					LogError(tie.InnerException.Message);
+					if (tie.InnerException != null)
+						LogError(tie.InnerException.Message);
 					LogError(tie.StackTrace);
 				}
 			}
@@ -162,8 +167,11 @@ namespace OnHookLogger
 				}
 			}
 
-			string[] GetDeclaringTypes(Type type, List<string>? prevList = null)
+			string[] GetDeclaringTypes(Type? type, List<string>? prevList = null)
 			{
+				if (type == null)
+					return Array.Empty<string>();
+
 				List<string> typeList = prevList ?? new List<string>();
 				if (prevList == null)
 					typeList.Add(type.Name);
