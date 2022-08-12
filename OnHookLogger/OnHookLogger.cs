@@ -43,13 +43,13 @@ namespace OnHookLogger
 			Log($"Job {job} completed in {_sw.Elapsed - _lastTriggers[category]}");
 			_lastTriggers[category] = _sw.Elapsed;
 		}
-
-		// if you need preloads, you will need to implement GetPreloadNames and use the other signature of Initialize.
+		
 		public override void Initialize()
 		{
 			Log("Initializing");
-			
-			// put additional initialization logic here
+
+			OnHookEvent.startupTime = DateTime.Now.TimeOfDay;
+
 			_sw.Start();
 			_methodUtil = new MethodUtil("OnHookLoggerDynamic");
 			LogStopwatch("MethodUtil Initialization");
