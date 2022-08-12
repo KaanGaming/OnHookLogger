@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using JetBrains.Annotations;
+using OnHookLogger.Exceptions;
 
 namespace OnHookLogger
 {
@@ -57,6 +59,7 @@ namespace OnHookLogger
 			Log("Initialized");
 		}
 
+		[UsedImplicitly]
 		public static void OnHookListener(string name)
 		{
 			Instance.Log($"{name} was activated");
@@ -72,7 +75,7 @@ namespace OnHookLogger
 			foreach (EventSearchResult e in eList)
 			{
 				_methodUtil.CreateListener(e, GetType().GetMethod("OnHookListener", BindingFlags.Public | BindingFlags.Static)
-				                       ?? throw new Exception("OnHookListener() in OnHookLogger doesn't exist"));
+				                       ?? throw new MethodNotFoundException("OnHookListener() in OnHookLogger doesn't exist"));
 			}
 			LogStopwatch("Create Listeners for On. Hooks", "attach");
 

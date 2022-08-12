@@ -1,13 +1,8 @@
-﻿using System;
+﻿using OnHookLogger.Exceptions;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using GlobalEnums;
-using JetBrains.Annotations;
 
 namespace OnHookLogger
 {
@@ -34,16 +29,6 @@ namespace OnHookLogger
 		{
 			return _handlerType.DefineMethod(name, MethodAttributes.Static | MethodAttributes.Public,
 				CallingConventions.Standard, returnType, paramTypes);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="t">Must be a <see cref="Delegate"/></param>
-		/// <returns></returns>
-		private MethodInfo GetInvoker(Type t)
-		{
-			return t.GetMethod("Invoke") ?? throw new ArgumentException("Type doesn't contain Invoke method");
 		}
 		
 		public void CreateListener(EventSearchResult e, MethodInfo callback)
@@ -79,46 +64,32 @@ namespace OnHookLogger
 			finalProduct = _handlerType.CreateType();
 		}
 
-		private void TestIL(On.HeroController.orig_Attack orig, HeroController self, AttackDirection dir)
-		{
-			orig(self, dir);
-		}
-
 		/// <summary>
 		/// Must call <see cref="FinalizeType"/> before using this method
 		/// </summary>
-		/// <param name="declaringType"></param>
-		/// <param name="name"></param>
-		/// <returns></returns>
 		public MethodInfo? GetListener(EventSearchResult e)
 		{
 			if (finalProduct == null)
-				throw new Exception("MethodUtil's FinalizeType was not called");
-
-			try
-			{
-				return finalProduct.GetMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler");
-			}
-			catch (AmbiguousMatchException)
-			{
-				throw new ArgumentException($"Ambiguous match was found for {e}");
-			}
+				throw new TypeNotFinalizedException("MethodUtil's FinalizeType was not called");
+			
+			return finalProduct.GetMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler");
 		}
 
 		public MethodInfo? GetListenerSafe(EventSearchResult e, Action<bool, string?> callback)
 		{
-			if (finalProduct == null)
-				throw new Exception("MethodUtil's FinalizeType was not called");
-
 			MethodInfo? method = null;
 
 			try
 			{
-				method = finalProduct.GetMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler");
+				method = GetListener(e);
 			}
 			catch (AmbiguousMatchException)
 			{
 				callback(false, $"Ambiguous match was found for {e}");
+			}
+			catch (TypeNotFinalizedException ex)
+			{
+				callback(false, ex.Message);
 			}
 
 			if (method != null)
