@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using JetBrains.Annotations;
@@ -26,10 +27,13 @@ namespace OnHookLogger
 		}
 
 		public override string GetVersion() => GetType().Assembly.GetName().Version.ToString();
+
+		private Logger _logger;
 		
 		public OnHookLogger() : base("On. Hook Logger")
 		{
 			_instance = this;
+			_logger = new Logger(GenerateLogFile());
 		}
 
 		private MethodUtil? _methodUtil;
@@ -42,6 +46,20 @@ namespace OnHookLogger
 				_lastTriggers.Add(category, TimeSpan.Zero);
 			Log($"Job {job} completed in {_sw.Elapsed - _lastTriggers[category]}");
 			_lastTriggers[category] = _sw.Elapsed;
+		}
+
+		private string GenerateLogFile()
+		{
+			string locapd = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+			string folder = $"{locapd}/OnHookLogger";
+			if (!Directory.Exists(folder))
+				Directory.CreateDirectory(folder);
+			DateTime now = DateTime.Now;
+
+			string filename = $"log-{now.Day}-{now.Month}-{now.Year}-{UnityEngine.Random.Range(1000, 9999)}.txt";
+			if (!File.Exists(filename))
+				File.WriteAllText(filename, "");
+			return filename;
 		}
 		
 		public override void Initialize()
@@ -60,9 +78,9 @@ namespace OnHookLogger
 		}
 
 		[UsedImplicitly]
-		public static void OnHookListener(string name)
+		public void OnHookListener(OnHookEvent onHookEvent)
 		{
-			Instance.Log($"{name} was activated");
+			_logger.Log(onHookEvent);
 		}
 
 		private void AttachLoggersToEvents()

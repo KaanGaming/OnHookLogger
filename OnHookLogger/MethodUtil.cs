@@ -31,6 +31,12 @@ namespace OnHookLogger
 				CallingConventions.Standard, returnType, paramTypes);
 		}
 		
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="e"></param>
+		/// <param name="callback">Method must be in the format of <c>f(<see cref="OnHookEvent"/>)</c></param>
+		/// <exception cref="MethodNotFoundException"></exception>
 		public void CreateListener(EventSearchResult e, MethodInfo callback)
 		{
 			if (_trackedMethods.Contains(e))
@@ -40,13 +46,26 @@ namespace OnHookLogger
 			MethodBuilder h = DefineMethod($"{string.Join("_", e.DeclaringTypes)}_{e.Event.Name}_Handler",
 				hookInfo.invoker.ReturnType, hookInfo.paramTypes);
 
+			ConstructorInfo evCtor = typeof(OnHookEvent).GetConstructor(
+				new[] { typeof(string), typeof(bool) }) 
+			              ?? throw new MethodNotFoundException("Constructor of OnHookEvent is either out of date or not valid");
+
 			int paramsNum = hookInfo.ParameterCount;
+			bool isStatic = hookInfo.parameters[1].Name == "self";
 			MethodInfo orig = hookInfo.GetOrig();
 
 			ILGenerator il = h.GetILGenerator();
 			
 			il.Emit(OpCodes.Ldstr, e.ToString());
-			il.Emit(OpCodes.Call, callback); // non static methods need not to be called with callvirt
+			il.Emit(OpCodes.Ldc_I4, Convert.ToInt32(isStatic)); // bool
+			il.Emit(OpCodes.Newobj, evCtor); // new OnHookEvent(string, bool)
+
+			// TODO: Push an object reference to the method
+
+			//il.Emit(OpCodes.Call, log); // Log(int index, OnHookEvent ev)
+
+			//il.Emit(OpCodes.Ldstr, e.ToString());
+			//il.Emit(OpCodes.Call, callback); // non static methods need not to be called with callvirt
 			
 			for (int i = 0; i < paramsNum; i++)
 			{
