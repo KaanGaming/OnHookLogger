@@ -23,7 +23,7 @@ namespace OnHookLogger
 
 		public override string ToString()
 		{
-			return $"[{time}]" + className + (isStatic ? " (Static event)" : "")
+			return $"[{time}] " + className + (isStatic ? " (Static event)" : "")
 			                 + $" - Scene name {currentScene.name} (Path: {currentScene.path})";
 		}
 	}
