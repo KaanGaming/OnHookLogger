@@ -5,8 +5,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using JetBrains.Annotations;
 using OnHookLogger.Exceptions;
+using UnityEngine;
 
 namespace OnHookLogger
 {
@@ -56,7 +58,9 @@ namespace OnHookLogger
 				Directory.CreateDirectory(folder);
 			DateTime now = DateTime.Now;
 
-			string filename = $"log-{now.Day}-{now.Month}-{now.Year}-{UnityEngine.Random.Range(1000, 9999)}.txt";
+			int timeNumber = now.Hour * 3600 + now.Minute * 60 + now.Second;
+
+			string filename = $"{folder}/log-{now.Day}-{now.Month}-{now.Year}-{timeNumber}.txt";
 			if (!File.Exists(filename))
 				File.WriteAllText(filename, "");
 			return filename;
@@ -68,6 +72,8 @@ namespace OnHookLogger
 
 			OnHookEvent.startupTime = DateTime.Now.TimeOfDay;
 
+			ModHooks.ApplicationQuitHook += OnAppClose;
+
 			_sw.Start();
 			_methodUtil = new MethodUtil("OnHookLoggerDynamic");
 			LogStopwatch("MethodUtil Initialization");
@@ -75,6 +81,11 @@ namespace OnHookLogger
 			LogStopwatch("Attach Loggers to Events");
 
 			Log("Initialized");
+		}
+
+		private void OnAppClose()
+		{
+			_logger.Close();
 		}
 
 		[UsedImplicitly]
@@ -92,8 +103,9 @@ namespace OnHookLogger
 
 			foreach (EventSearchResult e in eList)
 			{
-				_methodUtil.CreateListener(e, GetType().GetMethod("OnHookListener", BindingFlags.Public | BindingFlags.Static)
-				                       ?? throw new MethodNotFoundException("OnHookListener() in OnHookLogger doesn't exist"));
+				_methodUtil.CreateListener(e, GetType().GetMethod("OnHookListener") 
+				        ?? throw new MethodNotFoundException("OnHookListener() in OnHookLogger doesn't exist"), this,
+					typeof(OnHookLogger));
 			}
 			LogStopwatch("Create Listeners for On. Hooks", "attach");
 
